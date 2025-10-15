@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  REJECTED
+}
+
+enum ApplicationPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum TimelineEventType {
+  CREATED
+  STATUS_CHANGE
+  NOTE
+  FOLLOW_UP
+  INTERVIEW
+  OFFER
+  REJECTION
+  TAILORING
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  avatarUrl    String?
+  applications Application[]
+  companies    Company[]
+  contacts     Contact[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Company {
+  id           String        @id @default(cuid())
+  name         String
+  website      String?
+  industry     String?
+  location     String?
+  notes        String?
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contacts     Contact[]
+  applications Application[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Contact {
+  id             String        @id @default(cuid())
+  name           String
+  title          String?
+  email          String?
+  phone          String?
+  linkedinUrl    String?
+  notes          String?
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId      String?
+  company        Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  applications   Application[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+}
+
+model Application {
+  id               String              @id @default(cuid())
+  title            String
+  location         String?
+  workMode         WorkMode            @default(REMOTE)
+  jobUrl           String?
+  salaryMin        Int?
+  salaryMax        Int?
+  salaryCurrency   String              @default("USD")
+  status           ApplicationStatus   @default(SAVED)
+  priority         ApplicationPriority @default(MEDIUM)
+  deadline         DateTime?
+  followUpDate     DateTime?
+  notes            String?
+  jobDescription   String?
+  userId           String
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId        String
+  company          Company             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  contactId        String?
+  contact          Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  timeline         TimelineEvent[]
+  tailoringResults TailoringResult[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([status])
+  @@index([priority])
+  @@index([followUpDate])
+  @@index([deadline])
+}
+
+model TimelineEvent {
+  id            String            @id @default(cuid())
+  type          TimelineEventType
+  title         String
+  body          String?
+  occurredAt    DateTime          @default(now())
+  applicationId String
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([occurredAt])
+}
+
+model TailoringResult {
+  id               String      @id @default(cuid())
+  source           String
+  cvBullets        String[]
+  coverLetter      String
+  interviewNotes   String[]
+  keywordSummary   String
+  rawJobDescription String
+  applicationId    String?
+  application      Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  createdAt        DateTime    @default(now())
+
+  @@index([applicationId])
+}
